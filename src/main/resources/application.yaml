@@ -1,0 +1,14 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    listener:
+      poll-timeout: 3000
+      concurrency: 3
+    topics:
+      houses: blueprints.house-people.ev.house
+      people: blueprints.house-people.ev.people
+      people2: blueprints.house-people.ev.people2
+    houses-id: housesGroup
+logging:
+  level:
+    root: INFO
