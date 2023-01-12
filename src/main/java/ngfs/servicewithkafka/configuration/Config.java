@@ -1,5 +1,6 @@
 package ngfs.servicewithkafka.configuration;
 
+import ngfs.servicewithkafka.model.HousePayload;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -65,9 +66,9 @@ public class Config {
     }
 
     @Bean
-    KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, Object>>
+    KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, HousePayload>>
     kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<Integer, Object> factory =
+        ConcurrentKafkaListenerContainerFactory<Integer, HousePayload> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(concurrency);
@@ -76,8 +77,8 @@ public class Config {
     }
 
     @Bean
-    public ConsumerFactory<Integer, Object> consumerFactory() {
-        return new DefaultKafkaConsumerFactory<>(consumerConfigs());
+    public ConsumerFactory<Integer, HousePayload> consumerFactory() {
+        return new DefaultKafkaConsumerFactory<>(consumerConfigs(), new IntegerDeserializer(), new JsonDeserializer<>(HousePayload.class));
     }
 
     @Bean

@@ -11,8 +11,6 @@ public class TestHelper {
 
     protected static final String PEOPLE_TOPIC2 = "blueprints.house-people.people2";
 
-    protected static final String HOUSES_TOPIC = "blueprints.house-people.house";
-
     protected PeoplePayload getPersonPayload(String eventType) {
         PeoplePayload payload = new PeoplePayload();
         People person = new People();

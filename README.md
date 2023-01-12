@@ -32,10 +32,11 @@ gradle clean
 gradle build
 ```
 
-#### Setup endpoints for kafka service:
+#### Setup bootstrap endpoint for kafka service:
 
 ```
 resources/application.yaml
+port: 29092
 ```
 
 ## Usage
@@ -59,10 +60,22 @@ gradle generateOnlyModelByAsyncApiSpec
 gradle generateAllArtifactsByAsyncApiSpec
 ```
 
-#### Run service:
+#### Start docker with kafka:
+```sh
+cd docker
+docker-compose up -d 
+```
+
+#### Create topics in Kafka :
+```
+3 topics from resources/application.yaml
+to connect to kafka and create/check topics  can use Offset Tool: https://kafkatool.com/download.html
+```
+
+#### Run tests:
 
 ```sh
-gradle bootRun
+gradle integrationTests
 ```
 
 <!-- MARKDOWN LINKS & IMAGES -->

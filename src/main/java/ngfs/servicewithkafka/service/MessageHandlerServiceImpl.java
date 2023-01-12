@@ -15,7 +15,6 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 import javax.validation.Valid;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -41,8 +40,8 @@ public class MessageHandlerServiceImpl implements MessageHandlerService {
     @Override
     @KafkaListener(topics = "#{'${spring.kafka.topics.houses}'}", groupId = "${spring.kafka.houses-id}")
     public String notifyHouseChanges(@Payload @Valid HousePayload payload,
-                                     @Header(KafkaHeaders.RECEIVED_MESSAGE_KEY) Integer key,
-                                     @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+                                     @Header(KafkaHeaders.RECEIVED_KEY) Integer key,
+                                     @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                                      @Header(KafkaHeaders.RECEIVED_TIMESTAMP) long timestamp) {
         String logging =
                 "Next message was received: key: " + key + ", Payload: " + payload + ", Timestamp: " + timestamp +
@@ -50,7 +49,6 @@ public class MessageHandlerServiceImpl implements MessageHandlerService {
         LOGGER.info(logging);
         if ("update".equals(payload.getEventType())) {
             LOGGER.info("Houses payload was \"update\", information to people topic will be published");
-            LOGGER.info("Check if people with such address exist..");
             List<People> people = repository.findByAddressId(payload.getEvent().getId());
             LOGGER.info("Found people with changed house: " + people);
 
@@ -58,22 +56,23 @@ public class MessageHandlerServiceImpl implements MessageHandlerService {
                 personUpdated.getAddressData().setHomeIds(new long[]{payload.getEvent().getNumber()});
 
                 PeoplePayload peoplePayload = getPeoplePayload(key, personUpdated, payload.getEventType(),
-                        LocalDateTime.now());
+                        OffsetDateTime.now());
                 publisherService.notifyPeopleChanges(key, peoplePayload);
             }
         }
         if ("delete".equals(payload.getEventType())) {
             LOGGER.info("Houses payload was \"delete\", information to people topic will be published");
-            LOGGER.info("Check if people with such address exist..");
             List<People> people = repository.findByAddressId(payload.getEvent().getId());
             LOGGER.info("Found people with changed house: " + people);
 
             for (People personUpdated : people) {
+
                 long[] array = ArrayUtils.removeElement(personUpdated.getAddressData().getHomeIds(),
                         payload.getEvent().getNumber());
                 personUpdated.getAddressData().setHomeIds(array);
 
-                PeoplePayload peoplePayload = getPeoplePayload(key, personUpdated, "update", LocalDateTime.now());
+                PeoplePayload peoplePayload = getPeoplePayload(key, personUpdated, "update", OffsetDateTime.now());
+                LOGGER.info("People payload to send: " + peoplePayload);
                 publisherService.notifyPeopleChanges(key, peoplePayload);
                 publisherService.notifyAnotherPeopleChanges(key, peoplePayload);
             }
@@ -81,12 +80,12 @@ public class MessageHandlerServiceImpl implements MessageHandlerService {
         return logging;
     }
 
-    private PeoplePayload getPeoplePayload(int id, People event, String eventType, LocalDateTime sentAt) {
+    private PeoplePayload getPeoplePayload(int id, People event, String eventType, OffsetDateTime sentAt) {
         PeoplePayload payload = new PeoplePayload();
         payload.setEventId(id);
         payload.setEvent(event);
         payload.setEventType(eventType);
-        payload.setSentAt(OffsetDateTime.from(sentAt));
+        payload.setSentAt(sentAt);
         return payload;
     }
 }

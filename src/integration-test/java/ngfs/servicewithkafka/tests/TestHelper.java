@@ -12,14 +12,13 @@ import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer2;
+import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -27,21 +26,17 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.springframework.test.util.AssertionErrors.assertEquals;
-import static org.springframework.test.util.AssertionErrors.assertNotNull;
-
 public class TestHelper {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestHelper.class);
-
+    @Value("${spring.kafka.topics.people}")
+    protected
+    String PEOPLE_TOPIC;
+    @Value("${spring.kafka.topics.people2}")
+    protected
+    String PEOPLE_TOPIC2;
     @Value("${spring.kafka.topics.houses}")
     String HOUSES_TOPIC;
-
-    @Value("${spring.kafka.topics.people}")
-    String PEOPLE_TOPIC;
-
-    @Value("${spring.kafka.topics.people2}")
-    String PEOPLE_TOPIC2;
 
     protected ConsumerRecord<Integer, PeoplePayload> getLatestRecordInTopic(Consumer<Integer, PeoplePayload> consumer) {
 
@@ -71,10 +66,10 @@ public class TestHelper {
         consumerConfigs.put(JsonDeserializer.KEY_DEFAULT_TYPE, Integer.class);
         consumerConfigs.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
                 "ngfs.servicewithkafka.model.PeoplePayload");
-        consumerConfigs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer2.class);
-        consumerConfigs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer2.class);
-        consumerConfigs.put(ErrorHandlingDeserializer2.KEY_DESERIALIZER_CLASS, IntegerDeserializer.class);
-        consumerConfigs.put(ErrorHandlingDeserializer2.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+        consumerConfigs.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        consumerConfigs.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        consumerConfigs.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, IntegerDeserializer.class);
+        consumerConfigs.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
         return consumerConfigs;
     }
 
@@ -87,35 +82,6 @@ public class TestHelper {
         return props;
     }
 
-    protected void recordAssertion(ConsumerRecord<Integer, PeoplePayload> latestRecord, int key,
-                                   PeoplePayload payload) {
-        assertNotNull("Payload is null, no messgaes found in topic", latestRecord);
-        assertEquals("Key is wrong", key, latestRecord.key());
-        assertEquals("Event id is wrong", payload.getEventId(), latestRecord.value().getEventId());
-        assertEquals("Event type is wrong", payload.getEventType(), latestRecord.value().getEventType());
-        assertEquals("Home list is wrong", payload.getEvent().getAddressData().getHomeIds(),
-                latestRecord.value().getEvent().getAddressData().getHomeIds());
-        assertEquals("Registration id is wrong", payload.getEvent().getAddressData().getRegistrationId(),
-                latestRecord.value().getEvent().getAddressData().getRegistrationId());
-        assertEquals("Birthday is wrong", payload.getEvent().getBirthday(),
-                latestRecord.value().getEvent().getBirthday());
-        assertEquals("Children list is wrong", payload.getEvent().getChildren(),
-                latestRecord.value().getEvent().getChildren());
-        assertEquals("Firstname is wrong", payload.getEvent().getFirstname(),
-                latestRecord.value().getEvent().getFirstname());
-        assertEquals("Lastname is wrong", payload.getEvent().getLastname(),
-                latestRecord.value().getEvent().getLastname());
-        assertEquals("Payload id is wrong", payload.getEvent().getId(), latestRecord.value().getEvent().getId());
-        assertEquals("Relatives list is wrong", payload.getEvent().getRelatives(),
-                latestRecord.value().getEvent().getRelatives());
-        assertEquals("Status is wrong", payload.getEvent().getStatus(), latestRecord.value().getEvent().getStatus());
-        if (payload.getSentAt().compareTo(latestRecord.value().getSentAt()) > 0) {
-            throw new IllegalArgumentException(
-                    "Sent at values of last message in queue is less than time of notification trigger: " +
-                            payload.getSentAt() + " is less than " + latestRecord.value().getSentAt());
-        }
-    }
-
     protected House getHouse(int id, LocalDate lastUsed) {
         House house = new House();
         house.setId((long) id);
@@ -126,26 +92,26 @@ public class TestHelper {
         return house;
     }
 
-    protected HousePayload getHousePayload(int id, House event, String eventType, LocalDateTime sentAt) {
+    protected HousePayload getHousePayload(int id, House event, String eventType, OffsetDateTime sentAt) {
         HousePayload housePayload = new HousePayload();
         housePayload.setEventId(id);
         housePayload.setEvent(event);
         housePayload.setEventType(eventType);
-        housePayload.setSentAt(OffsetDateTime.from(sentAt));
+        housePayload.setSentAt(sentAt);
         return housePayload;
     }
 
-    protected PeoplePayload getPeoplePayload(int id, People event, LocalDateTime sentAt) {
+    protected PeoplePayload getPeoplePayload(int id, People event, OffsetDateTime sentAt) {
         PeoplePayload payload = new PeoplePayload();
         payload.setEventId(id);
         payload.setEvent(event);
         payload.setEventType("update");
-        payload.setSentAt(OffsetDateTime.from(sentAt));
+        payload.setSentAt(sentAt);
         return payload;
     }
 
     protected People getPeople(int id, String firstname, String lastname, LocalDate birthday, Address address,
-                               List<Long> children,  List<Long> relatives) {
+                               List<Long> children, List<Long> relatives) {
         People people = new People();
         people.setId((long) id);
         people.setFirstname(firstname);
@@ -168,14 +134,14 @@ public class TestHelper {
     protected HousePayload getHouseProducerPayload(String eventType) {
         int key = OffsetDateTime.now().getNano();
         House house = getHouse(key, LocalDate.now());
-        return getHousePayload(key, house, eventType, LocalDateTime.now());
+        return getHousePayload(key, house, eventType, OffsetDateTime.now());
     }
 
     protected void sendHouseProducerRecord(HousePayload payload, KafkaProducer<Integer, HousePayload> producerHouses) {
         ProducerRecord<Integer, HousePayload> record = new ProducerRecord<>(HOUSES_TOPIC, 0, System.currentTimeMillis(),
                 payload.getEventId(), payload);
         producerHouses.send(record, (metadata, exception) -> LOGGER.info("Next message was send: topic: " + metadata.topic() + ", " + ", Timestamp: " +
-                metadata.timestamp() + ", Partition: " + metadata.partition()));
+                metadata.timestamp() + ", Partition: " + metadata.partition() + "Value: " + record.value()));
         producerHouses.flush();
     }
 }

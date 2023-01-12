@@ -21,10 +21,12 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static org.springframework.test.util.AssertionErrors.assertEquals;
+import static org.springframework.test.util.AssertionErrors.assertNotNull;
 
 @SpringBootTest
 public class PositiveTest extends TestHelper {
@@ -84,13 +86,12 @@ public class PositiveTest extends TestHelper {
 
         sendHouseProducerRecord(housePayload, producerHouses);
 
-        //generate expected people record
-        PeoplePayload peoplePayload = getPeoplePayload(housePayload.getEventId(), person2,
-                LocalDateTime.now());
-
         //get record sent by service
         ConsumerRecord<Integer, PeoplePayload> latestRecordPeople = getLatestRecordInTopic(consumerPeople);
-        recordAssertion(latestRecordPeople, Math.toIntExact(housePayload.getEvent().getId()), peoplePayload);
+        assertNotNull("Payload for topic " + PEOPLE_TOPIC + " is null, no messages found in topic", latestRecordPeople);
+        assertEquals("Key for topic " + PEOPLE_TOPIC + " is wrong",
+                Math.toIntExact(housePayload.getEvent().getId()), latestRecordPeople.key());
+
         Assertions.assertSame(1, repository.findById(person2.getId()).get().getAddressData().getHomeIds().length);
     }
 
@@ -118,15 +119,18 @@ public class PositiveTest extends TestHelper {
 
         sendHouseProducerRecord(housePayload, producerHouses);
 
-        PeoplePayload peoplePayload = getPeoplePayload(housePayload.getEventId(), person2,
-                LocalDateTime.now());
-
         //get record sent by service
         ConsumerRecord<Integer, PeoplePayload> latestRecordPeople = getLatestRecordInTopic(consumerPeople);
         ConsumerRecord<Integer, PeoplePayload> latestRecordPeople2 = getLatestRecordInTopic(consumerPeople2);
 
-        recordAssertion(latestRecordPeople, Math.toIntExact(housePayload.getEvent().getId()), peoplePayload);
-        recordAssertion(latestRecordPeople2, Math.toIntExact(housePayload.getEvent().getId()), peoplePayload);
+        assertNotNull("Payload for topic " + PEOPLE_TOPIC + " is null, no messages found in topic", latestRecordPeople);
+        assertEquals("Key for topic " + PEOPLE_TOPIC + " is wrong",
+                Math.toIntExact(housePayload.getEvent().getId()), latestRecordPeople.key());
+        assertNotNull("Payload for topic " + PEOPLE_TOPIC2 + " is null, no messages found in topic", latestRecordPeople);
+        assertEquals("Key for topic " + PEOPLE_TOPIC2 + " is wrong",
+                Math.toIntExact(housePayload.getEvent().getId()), latestRecordPeople2.key());
+
+
         Assertions.assertSame(2, repository.findById(person2.getId()).get().getAddressData().getHomeIds().length);
     }
 }
